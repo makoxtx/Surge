@@ -1,0 +1,78 @@
+
+name: Sync BlockAds for Mac
+
+on:
+  schedule:
+    # 每天北京时间 04:30 自动同步
+    - cron: "30 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-blockads
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download and convert original module
+        run: |
+          python3 - <<'PY'
+          import urllib.request
+          import re
+          import os
+
+          url = "https://raw.githubusercontent.com/fmz200/wool_scripts/refs/heads/main/Surge/module/blockAds.module"
+
+          req = urllib.request.Request(
+              url,
+              headers={"User-Agent": "GitHub-Actions"}
+          )
+
+          with urllib.request.urlopen(req, timeout=60) as response:
+              content = response.read().decode("utf-8-sig")
+
+          content, count = re.subn(
+              r"(?m)^#!system=ios[ \t]*$",
+              "#!system=mac",
+              content
+          )
+
+          if count != 1:
+              raise SystemExit(
+                  f"Expected exactly one iOS system declaration, found {count}. Aborting."
+              )
+
+          if "#!system=ios" in content:
+              raise SystemExit("iOS restriction still exists. Aborting.")
+
+          path = "Surge/module/blockAds.module"
+          os.makedirs(os.path.dirname(path), exist_ok=True)
+
+          with open(path, "w", encoding="utf-8", newline="\n") as f:
+              f.write(content)
+
+          print("Mac module updated successfully.")
+          PY
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add Surge/module/blockAds.module
+
+          if git diff --cached --quiet; then
+            echo "No changes detected."
+            exit 0
+          fi
+
+          git commit -m "Sync upstream BlockAds for Mac"
+          git push
