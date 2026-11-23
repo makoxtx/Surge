@@ -41,14 +41,9 @@ jobs:
 
           content, count = re.subn(
               r"(?m)^#!system=ios[ \t]*$",
-              "#!system=mac",
+              "",
               content
           )
-
-          if count != 1:
-              raise SystemExit(
-                  f"Expected exactly one iOS system declaration, found {count}. Aborting."
-              )
 
           if "#!system=ios" in content:
               raise SystemExit("iOS restriction still exists. Aborting.")
